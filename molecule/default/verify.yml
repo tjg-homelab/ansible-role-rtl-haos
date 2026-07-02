@@ -1,0 +1,74 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  tasks:
+    - name: Stat install directory
+      ansible.builtin.stat:
+        path: /opt/rtl-haos
+      register: rtl_haos_dir
+
+    - name: Assert install directory exists
+      ansible.builtin.assert:
+        that:
+          - rtl_haos_dir.stat.exists
+          - rtl_haos_dir.stat.isdir
+
+    - name: Stat .env file
+      ansible.builtin.stat:
+        path: /opt/rtl-haos/.env
+      register: rtl_haos_env
+
+    - name: Assert .env is deployed with correct permissions
+      ansible.builtin.assert:
+        that:
+          - rtl_haos_env.stat.exists
+          - rtl_haos_env.stat.isreg
+          - rtl_haos_env.stat.mode == "0640"
+
+    - name: Read .env file
+      ansible.builtin.slurp:
+        src: /opt/rtl-haos/.env
+      register: rtl_haos_env_content
+
+    - name: Assert .env has required MQTT variables
+      ansible.builtin.assert:
+        that:
+          - "'MQTT_HOST=' in (rtl_haos_env_content.content | b64decode)"
+          - "'MQTT_USER=' in (rtl_haos_env_content.content | b64decode)"
+          - "'MQTT_PASS=' in (rtl_haos_env_content.content | b64decode)"
+        fail_msg: "Required MQTT variables missing from .env"
+
+    - name: Assert .env has RTL_CONFIG
+      ansible.builtin.assert:
+        that:
+          - "'RTL_CONFIG=' in (rtl_haos_env_content.content | b64decode)"
+        fail_msg: "RTL_CONFIG missing from .env"
+
+    - name: Assert .env has DEVICE_WHITELIST
+      ansible.builtin.assert:
+        that:
+          - "'DEVICE_WHITELIST=' in (rtl_haos_env_content.content | b64decode)"
+        fail_msg: "DEVICE_WHITELIST missing from .env"
+
+    - name: Stat systemd service unit
+      ansible.builtin.stat:
+        path: /etc/systemd/system/rtl-bridge.service
+      register: rtl_bridge_service
+
+    - name: Assert rtl-bridge service unit is deployed as a regular file
+      ansible.builtin.assert:
+        that:
+          - rtl_bridge_service.stat.exists
+          - rtl_bridge_service.stat.isreg
+          - rtl_bridge_service.stat.mode == "0644"
+
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Assert rtl-bridge service is enabled
+      ansible.builtin.assert:
+        that:
+          - "'rtl-bridge.service' in ansible_facts.services"
+          - ansible_facts.services['rtl-bridge.service'].status == 'enabled'
+        # Service will not reach 'running' in molecule — no RTL-SDR hardware or MQTT broker.

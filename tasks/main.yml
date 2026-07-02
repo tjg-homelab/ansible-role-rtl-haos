@@ -1,0 +1,79 @@
+---
+# tasks file for rtl-haos
+
+- name: "Rtl-haos : Install system dependencies"
+  become: true
+  ansible.builtin.apt:
+    name: "{{ rtl_haos_os_packages }}"
+    state: present
+    update_cache: true
+
+- name: "Rtl-haos : Ensure install path exists"
+  become: true
+  ansible.builtin.file:
+    path: "{{ rtl_haos_install_path }}"
+    state: directory
+    mode: "0755"
+
+- name: "Rtl-haos : Clone rtl-haos repository at pinned version"
+  become: true
+  ansible.builtin.git:
+    repo: "{{ rtl_haos_repo_url }}"
+    version: "{{ rtl_haos_version }}"
+    dest: "{{ rtl_haos_install_path }}"
+    update: true
+  notify: Restart rtl-bridge
+  when: rtl_haos_source_mode == "git"
+
+- name: "Rtl-haos : Create Python virtual environment"
+  become: true
+  ansible.builtin.command:
+    cmd: python3 -m venv "{{ rtl_haos_install_path }}/.venv"
+    creates: "{{ rtl_haos_install_path }}/.venv/bin/activate"
+  when: rtl_haos_source_mode == "git"
+
+- name: "Rtl-haos : Install Python dependencies into venv"
+  become: true
+  ansible.builtin.pip:
+    name: "{{ rtl_haos_install_path }}"
+    virtualenv: "{{ rtl_haos_install_path }}/.venv"
+    state: present
+  when: rtl_haos_source_mode == "git"
+  notify: Restart rtl-bridge
+
+- name: "Rtl-haos : Deploy .env configuration"
+  become: true
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ rtl_haos_install_path }}/.env"
+    mode: "0640"
+  notify: Restart rtl-bridge
+
+- name: "Rtl-haos : Deploy rtl-bridge systemd unit"
+  become: true
+  ansible.builtin.template:
+    src: rtl-bridge.service.j2
+    dest: /etc/systemd/system/rtl-bridge.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart rtl-bridge
+
+- name: "Rtl-haos : Enable and start rtl-bridge"
+  become: true
+  ansible.builtin.systemd:
+    name: rtl-bridge
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: "Rtl-haos : Remove legacy install path"
+  become: true
+  ansible.builtin.file:
+    path: "{{ rtl_haos_legacy_path }}"
+    state: absent
+  when:
+    - rtl_haos_legacy_path is defined
+    - rtl_haos_legacy_path != rtl_haos_install_path

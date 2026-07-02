@@ -1,0 +1,54 @@
+---
+# --- Installation ---
+
+rtl_haos_install_path: /opt/rtl-haos
+rtl_haos_repo_url: https://github.com/jaronmcd/rtl-haos
+# Pinned to a specific commit SHA since the upstream repo does not use git tags.
+# Check https://github.com/jaronmcd/rtl-haos/blob/main/CHANGELOG.md for release
+# notes. Update this value and re-run the role to upgrade.
+rtl_haos_version: "964cf8ab1f2fba43aa50d9505a1732d96d3de043"
+
+# Legacy path from before this role existed; removed on first run if present.
+rtl_haos_legacy_path: /root/rtl-haos
+
+# Source mode: "git" for normal installs; "local" skips the git clone / venv /
+# pip steps (used by molecule where there's no network or RTL-SDR hardware).
+rtl_haos_source_mode: git
+
+# OS packages required by rtl-haos and its dependencies.
+rtl_haos_os_packages:
+  - git
+  - rtl-sdr
+  - python3
+  - python3-pip
+
+# --- MQTT Settings (required — set these for your broker) ---
+# rtl_haos_mqtt_host: ""   # required — MQTT broker hostname/IP
+# rtl_haos_mqtt_user: ""   # required — MQTT username
+# rtl_haos_mqtt_pass: ""   # required — MQTT password (store in vault)
+# rtl_haos_mqtt_port: 1883 # optional — override the default broker port
+
+# --- RTL-SDR Configuration ---
+# JSON array of RTL-SDR radio configs. Each entry can specify:
+#   name, id (serial), freq, rate
+# Leave a single-device default; override for multiple dongles.
+rtl_haos_rtl_config: '[{"name": "Weather Radio", "freq": "433.92M"}]'
+
+# --- Device Filtering ---
+# Whitelist: if non-empty, only matching device models/IDs are published.
+# Supports glob patterns (device model families) and numeric instance IDs.
+# The defaults below are common 433 MHz weather-sensor families — customize
+# for your own sensors.
+rtl_haos_device_whitelist: '["Fineoffset*","Acurite-5n1*","Acurite-606TX*","Acurite-6045M*","Nexus-TH*"]'
+
+# Blacklist: device patterns to suppress. Leave undefined to disable.
+# rtl_haos_device_blacklist: '["SimpliSafe*"]'
+
+# --- Optional Tuning (uncomment to override rtl-haos defaults) ---
+# rtl_haos_expire_after: 600       # seconds before an HA sensor expires
+# rtl_haos_throttle_interval: 0    # 0 = send immediately; >0 = average over N seconds
+# rtl_haos_debug_raw_json: false
+# rtl_haos_force_new_ids: false
+# rtl_haos_show_timestamps: false
+# rtl_haos_verbose_transmissions: false
+# rtl_haos_battery_ok_clear_after: 300

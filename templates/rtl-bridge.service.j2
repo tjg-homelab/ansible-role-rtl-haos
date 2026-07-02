@@ -1,0 +1,15 @@
+[Unit]
+Description=rtl-bridge RTL-SDR to Home Assistant MQTT bridge
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory={{ rtl_haos_install_path }}
+EnvironmentFile={{ rtl_haos_install_path }}/.env
+ExecStart={{ rtl_haos_install_path }}/.venv/bin/python3 {{ rtl_haos_install_path }}/main.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,14 @@
+---
+# handlers file for rtl-haos
+
+- name: Reload systemd
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart rtl-bridge
+  become: true
+  ansible.builtin.systemd:
+    name: rtl-bridge
+    state: restarted
+    daemon_reload: true

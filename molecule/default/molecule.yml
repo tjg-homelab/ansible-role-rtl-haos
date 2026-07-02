@@ -1,0 +1,51 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: docker
+platforms:
+  - name: rtlhaos-debian12
+    image: geerlingguy/docker-debian12-ansible:latest
+    pre_build_image: true
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    command: /usr/sbin/init
+  - name: rtlhaos-debian13
+    image: geerlingguy/docker-debian13-ansible:latest
+    pre_build_image: true
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    command: /usr/sbin/init
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/..
+  config_options:
+    defaults:
+      remote_tmp: /var/tmp/.ansible/tmp
+  inventory:
+    group_vars:
+      all:
+        ansible_user: root
+        ansible_python_interpreter: /usr/bin/python3
+        # Skip git clone / venv / pip — no network or RTL-SDR hardware in CI.
+        rtl_haos_source_mode: local
+        rtl_haos_mqtt_host: "192.0.2.10"
+        rtl_haos_mqtt_user: "rtl_433"
+        rtl_haos_mqtt_pass: "molecule_test_pass"
+verifier:
+  name: ansible
+scenario:
+  # No idempotence step: in local mode the rtl-bridge binary isn't installed,
+  # so the service can't reach 'active' and repeated start attempts would
+  # report changed. The role is idempotent in a real (git-mode) deploy.
+  test_sequence:
+    - destroy
+    - create
+    - converge
+    - verify
+    - destroy
