@@ -32,14 +32,38 @@
     creates: "{{ rtl_haos_install_path }}/.venv/bin/activate"
   when: rtl_haos_source_mode == "git"
 
+# The source is a local git checkout, so `pip install <path>` has no version to
+# compare against and reports changed on every run — which bounced rtl-bridge on
+# every converge for no reason (AN-7). Gate the install on a stamp file recording
+# the version last installed into this venv, so it runs only on first install, a
+# version bump, or a recreated venv (the stamp lives inside .venv, so it is gone
+# if the venv is). The stamp is written only after a successful install.
+- name: "Rtl-haos : Read installed rtl-haos version stamp"
+  become: true
+  ansible.builtin.slurp:
+    src: "{{ rtl_haos_install_path }}/.venv/.rtl-haos-version"
+  register: rtl_haos_version_stamp
+  failed_when: false
+  when: rtl_haos_source_mode == "git"
+
 - name: "Rtl-haos : Install Python dependencies into venv"
   become: true
   ansible.builtin.pip:
     name: "{{ rtl_haos_install_path }}"
     virtualenv: "{{ rtl_haos_install_path }}/.venv"
     state: present
-  when: rtl_haos_source_mode == "git"
+  when:
+    - rtl_haos_source_mode == "git"
+    - (rtl_haos_version_stamp.content | default('') | b64decode | trim) != rtl_haos_version
   notify: Restart rtl-bridge
+
+- name: "Rtl-haos : Record installed rtl-haos version"
+  become: true
+  ansible.builtin.copy:
+    dest: "{{ rtl_haos_install_path }}/.venv/.rtl-haos-version"
+    content: "{{ rtl_haos_version }}\n"
+    mode: "0644"
+  when: rtl_haos_source_mode == "git"
 
 - name: "Rtl-haos : Deploy .env configuration"
   become: true
